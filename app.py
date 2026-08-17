@@ -1,4 +1,3 @@
-```python
 import os
 from datetime import date
 
@@ -809,4 +808,160 @@ with master_tab:
                                 "name":
                                     category_name.strip(),
 
-                                "active": True, "sort_order": 0, } ).execute() st.success( "Category added." ) st.rerun() except Exception as e: st.error( f"Could not add category: {e}" ) # ----------------------------------------------------- # CATEGORY LIST # ----------------------------------------------------- try: categories = ( supabase .table("item_categories") .select("*") .eq("active", True) .order("sort_order") .order("name") .execute() ) category_data = ( categories.data or [] ) except Exception as e: st.error( f"Could not load categories: {e}" ) category_data = [] for category in category_data: with st.expander( f"📁 {category['name']}" ): # --------------------------------------------- # ADD ITEM # --------------------------------------------- with st.form( f"add_item_{category['id']}" ): item_name = st.text_input( "Item Name" ) add_item = st.form_submit_button( "➕ Add Item" ) if add_item: if not item_name.strip(): st.error( "Item name required." ) else: try: supabase.table( "master_items" ).insert( { "category_id": category["id"], "item_name": item_name.strip(), "active": True, "sort_order": 0, } ).execute() st.success( "Item added." ) st.rerun() except Exception as e: st.error( f"Could not add item: {e}" ) # --------------------------------------------- # ITEMS # --------------------------------------------- try: items = ( supabase .table("master_items") .select("*") .eq( "category_id", category["id"], ) .eq("active", True) .order("sort_order") .order("item_name") .execute() ) item_data = ( items.data or [] ) except Exception as e: st.error( f"Could not load items: {e}" ) item_data = [] if not item_data: st.info( "No items in this category." ) else: for item in item_data: st.write( f"📦 {item['item_name']}" )
+                                "active":
+                                    True,
+
+                                "sort_order":
+                                    0,
+                            }
+                        ).execute()
+
+                        st.success(
+                            "Category added."
+                        )
+
+                        st.rerun()
+
+                    except Exception as e:
+
+                        st.error(
+                            f"Could not add category: {e}"
+                        )
+
+    # -----------------------------------------------------
+    # CATEGORY LIST
+    # -----------------------------------------------------
+
+    try:
+
+        categories = (
+            supabase
+            .table("item_categories")
+            .select("*")
+            .eq("active", True)
+            .order("sort_order")
+            .order("name")
+            .execute()
+        )
+
+        category_data = (
+            categories.data or []
+        )
+
+    except Exception as e:
+
+        st.error(
+            f"Could not load categories: {e}"
+        )
+
+        category_data = []
+
+    for category in category_data:
+
+        with st.expander(
+            f"📁 {category['name']}"
+        ):
+
+            # ---------------------------------------------
+            # ADD ITEM
+            # ---------------------------------------------
+
+            with st.form(
+                f"add_item_{category['id']}"
+            ):
+
+                item_name = st.text_input(
+                    "Item Name"
+                )
+
+                add_item = st.form_submit_button(
+                    "➕ Add Item"
+                )
+
+                if add_item:
+
+                    if not item_name.strip():
+
+                        st.error(
+                            "Item name required."
+                        )
+
+                    else:
+
+                        try:
+
+                            supabase.table(
+                                "master_items"
+                            ).insert(
+                                {
+                                    "category_id":
+                                        category["id"],
+
+                                    "item_name":
+                                        item_name.strip(),
+
+                                    "active":
+                                        True,
+
+                                    "sort_order":
+                                        0,
+                                }
+                            ).execute()
+
+                            st.success(
+                                "Item added."
+                            )
+
+                            st.rerun()
+
+                        except Exception as e:
+
+                            st.error(
+                                f"Could not add item: {e}"
+                            )
+
+            # ---------------------------------------------
+            # ITEMS
+            # ---------------------------------------------
+
+            try:
+
+                items = (
+                    supabase
+                    .table("master_items")
+                    .select("*")
+                    .eq(
+                        "category_id",
+                        category["id"],
+                    )
+                    .eq("active", True)
+                    .order("sort_order")
+                    .order("item_name")
+                    .execute()
+                )
+
+                item_data = (
+                    items.data or []
+                )
+
+            except Exception as e:
+
+                st.error(
+                    f"Could not load items: {e}"
+                )
+
+                item_data = []
+
+            if not item_data:
+
+                st.info(
+                    "No items in this category."
+                )
+
+            else:
+
+                for item in item_data:
+
+                    st.write(
+                        f"📦 {item['item_name']}"
+                    )
