@@ -1,3 +1,4 @@
+```python
 import os
 from datetime import date
 
@@ -34,10 +35,14 @@ if not SUPABASE_URL or not SUPABASE_KEY:
     st.error("Supabase secrets are missing.")
     st.stop()
 
-supabase = create_client(
-    SUPABASE_URL,
-    SUPABASE_KEY,
-)
+try:
+    supabase = create_client(
+        SUPABASE_URL,
+        SUPABASE_KEY,
+    )
+except Exception as e:
+    st.error(f"Supabase connection failed: {e}")
+    st.stop()
 
 
 # =========================================================
@@ -45,6 +50,7 @@ supabase = create_client(
 # =========================================================
 
 st.title("🎪 Event Business Manager")
+
 st.caption(
     "Events • Locations • Workers • Samaan"
 )
@@ -104,7 +110,15 @@ with dashboard_tab:
             .execute()
         )
 
-        col1, col2, col3 = st.columns(3)
+        categories_result = (
+            supabase
+            .table("item_categories")
+            .select("id", count="exact")
+            .eq("active", True)
+            .execute()
+        )
+
+        col1, col2, col3, col4 = st.columns(4)
 
         col1.metric(
             "Events",
@@ -119,6 +133,11 @@ with dashboard_tab:
         col3.metric(
             "Workers",
             workers_result.count or 0,
+        )
+
+        col4.metric(
+            "Samaan Categories",
+            categories_result.count or 0,
         )
 
         st.success(
@@ -159,13 +178,70 @@ with events_tab:
                 "Client Name"
             )
 
-            event_date = st.date_input(
-                "Event Date",
-                value=date.today(),
+            event_type = st.text_input(
+                "Event Type"
             )
 
+            venue = st.text_input(
+                "Venue / Location"
+            )
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+
+                start_date = st.date_input(
+                    "Start Date",
+                    value=date.today(),
+                )
+
+            with col2:
+
+                end_date = st.date_input(
+                    "End Date",
+                    value=date.today(),
+                )
+
+            col3, col4 = st.columns(2)
+
+            with col3:
+
+                total_amount = st.number_input(
+                    "Total Amount",
+                    min_value=0.0,
+                    step=1000.0,
+                )
+
+            with col4:
+
+                advance_received = st.number_input(
+                    "Advance Received",
+                    min_value=0.0,
+                    step=1000.0,
+                )
+
+            notes = st.text_area(
+                "Notes"
+            )
+
+            col5, col6 = st.columns(2)
+
+            with col5:
+
+                show_location = st.toggle(
+                    "📍 Show Location to Workers",
+                    value=False,
+                )
+
+            with col6:
+
+                show_items = st.toggle(
+                    "📦 Show Samaan to Workers",
+                    value=True,
+                )
+
             create_event = st.form_submit_button(
-                "Create Event"
+                "➕ Create Event"
             )
 
             if create_event:
@@ -174,6 +250,12 @@ with events_tab:
 
                     st.error(
                         "Event name is required."
+                    )
+
+                elif end_date < start_date:
+
+                    st.error(
+                        "End Date cannot be before Start Date."
                     )
 
                 else:
@@ -186,13 +268,43 @@ with events_tab:
                             {
                                 "name":
                                     event_name.strip(),
+
                                 "client_name":
                                     client_name.strip()
                                     or None,
+
+                                "venue":
+                                    venue.strip()
+                                    or None,
+
                                 "start_date":
-                                    str(event_date),
+                                    str(start_date),
+
+                                "end_date":
+                                    str(end_date),
+
+                                "event_type":
+                                    event_type.strip()
+                                    or None,
+
+                                "total_amount":
+                                    total_amount,
+
+                                "advance_received":
+                                    advance_received,
+
                                 "status":
                                     "upcoming",
+
+                                "notes":
+                                    notes.strip()
+                                    or None,
+
+                                "show_location_to_workers":
+                                    show_location,
+
+                                "show_items_to_workers":
+                                    show_items,
                             }
                         ).execute()
 
@@ -207,6 +319,10 @@ with events_tab:
                         st.error(
                             f"Could not create event: {e}"
                         )
+
+    # -----------------------------------------------------
+    # EVENT LIST
+    # -----------------------------------------------------
 
     st.markdown("### 📋 Event List")
 
@@ -226,22 +342,92 @@ with events_tab:
                 "No events found."
             )
 
-        for event in events.data:
+        else:
 
-            with st.expander(
-                f"🎪 {event['name']} "
-                f" — {event.get('start_date', '-')}"
-            ):
+            for event in events.data:
 
-                st.write(
-                    f"**Client:** "
-                    f"{event.get('client_name') or '-'}"
-                )
+                with st.expander(
+                    f"🎪 {event.get('name', '-')}"
+                    f" — {event.get('start_date', '-')}"
+                ):
 
-                st.write(
-                    f"**Status:** "
-                    f"{event.get('status') or '-'}"
-                )
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+
+                        st.write(
+                            f"**Client:** "
+                            f"{event.get('client_name') or '-'}"
+                        )
+
+                        st.write(
+                            f"**Event Type:** "
+                            f"{event.get('event_type') or '-'}"
+                        )
+
+                        st.write(
+                            f"**Venue:** "
+                            f"{event.get('venue') or '-'}"
+                        )
+
+                        st.write(
+                            f"**Start:** "
+                            f"{event.get('start_date') or '-'}"
+                        )
+
+                        st.write(
+                            f"**End:** "
+                            f"{event.get('end_date') or '-'}"
+                        )
+
+                    with col2:
+
+                        st.write(
+                            f"**Status:** "
+                            f"{event.get('status') or '-'}"
+                        )
+
+                        st.write(
+                            f"**Total:** "
+                            f"₹{event.get('total_amount') or 0}"
+                        )
+
+                        st.write(
+                            f"**Advance:** "
+                            f"₹{event.get('advance_received') or 0}"
+                        )
+
+                        location_status = (
+                            "🟢 ON"
+                            if event.get(
+                                "show_location_to_workers"
+                            )
+                            else "🔴 OFF"
+                        )
+
+                        item_status = (
+                            "🟢 ON"
+                            if event.get(
+                                "show_items_to_workers"
+                            )
+                            else "🔴 OFF"
+                        )
+
+                        st.write(
+                            f"📍 Location: "
+                            f"{location_status}"
+                        )
+
+                        st.write(
+                            f"📦 Samaan: "
+                            f"{item_status}"
+                        )
+
+                    if event.get("notes"):
+
+                        st.info(
+                            f"📝 {event['notes']}"
+                        )
 
     except Exception as e:
 
@@ -277,8 +463,25 @@ with locations_tab:
                 "Google Maps Link"
             )
 
+            location_type = st.selectbox(
+                "Location Type",
+                [
+                    "event",
+                    "venue",
+                    "other",
+                ],
+            )
+
+            landlord_name = st.text_input(
+                "Contact / Owner Name"
+            )
+
+            landlord_phone = st.text_input(
+                "Contact / Owner Mobile"
+            )
+
             add_location = st.form_submit_button(
-                "Add Location"
+                "➕ Add Location"
             )
 
             if add_location:
@@ -299,14 +502,26 @@ with locations_tab:
                             {
                                 "name":
                                     location_name.strip(),
+
                                 "location_type":
-                                    "event",
+                                    location_type,
+
                                 "address":
                                     address.strip()
                                     or None,
+
                                 "maps_link":
                                     maps_link.strip()
                                     or None,
+
+                                "landlord_name":
+                                    landlord_name.strip()
+                                    or None,
+
+                                "landlord_phone":
+                                    landlord_phone.strip()
+                                    or None,
+
                                 "active":
                                     True,
                             }
@@ -343,23 +558,50 @@ with locations_tab:
                 "No locations found."
             )
 
-        for location in locations.data:
+        else:
 
-            with st.expander(
-                f"📍 {location['name']}"
-            ):
+            for location in locations.data:
 
-                st.write(
-                    f"**Address:** "
-                    f"{location.get('address') or '-'}"
-                )
+                with st.expander(
+                    f"📍 {location['name']}"
+                ):
 
-                if location.get("maps_link"):
-
-                    st.markdown(
-                        f"[🗺️ Open Google Maps]"
-                        f"({location['maps_link']})"
+                    st.write(
+                        f"**Type:** "
+                        f"{location.get('location_type') or '-'}"
                     )
+
+                    st.write(
+                        f"**Address:** "
+                        f"{location.get('address') or '-'}"
+                    )
+
+                    if location.get(
+                        "landlord_name"
+                    ):
+
+                        st.write(
+                            f"**Contact:** "
+                            f"{location['landlord_name']}"
+                        )
+
+                    if location.get(
+                        "landlord_phone"
+                    ):
+
+                        st.write(
+                            f"**Mobile:** "
+                            f"{location['landlord_phone']}"
+                        )
+
+                    if location.get(
+                        "maps_link"
+                    ):
+
+                        st.markdown(
+                            f"[🗺️ Open Google Maps]"
+                            f"({location['maps_link']})"
+                        )
 
     except Exception as e:
 
@@ -391,8 +633,27 @@ with workers_tab:
                 "Mobile"
             )
 
+            wage_type = st.selectbox(
+                "Wage Type",
+                [
+                    "daily",
+                    "monthly",
+                ],
+            )
+
+            wage_amount = st.number_input(
+                "Wage / Salary",
+                min_value=0.0,
+                step=100.0,
+            )
+
+            joining_date = st.date_input(
+                "Joining Date",
+                value=date.today(),
+            )
+
             add_worker = st.form_submit_button(
-                "Add Worker"
+                "➕ Add Worker"
             )
 
             if add_worker:
@@ -413,13 +674,20 @@ with workers_tab:
                             {
                                 "name":
                                     worker_name.strip(),
+
                                 "phone":
                                     worker_phone.strip()
                                     or None,
+
                                 "wage_type":
-                                    "daily",
+                                    wage_type,
+
                                 "wage_amount":
-                                    0,
+                                    wage_amount,
+
+                                "joining_date":
+                                    str(joining_date),
+
                                 "active":
                                     True,
                             }
@@ -444,7 +712,7 @@ with workers_tab:
         workers = (
             supabase
             .table("workers")
-            .select("id,name,phone,active")
+            .select("*")
             .eq("active", True)
             .order("name")
             .execute()
@@ -456,20 +724,32 @@ with workers_tab:
                 "No workers found."
             )
 
-        for worker in workers.data:
+        else:
 
-            col1, col2 = st.columns(
-                [4, 2]
-            )
+            for worker in workers.data:
 
-            col1.write(
-                f"👷 **{worker['name']}**"
-            )
+                col1, col2, col3 = st.columns(
+                    [4, 2, 2]
+                )
 
-            col2.write(
-                worker.get("phone")
-                or "-"
-            )
+                col1.write(
+                    f"👷 **{worker['name']}**"
+                )
+
+                col2.write(
+                    worker.get("phone")
+                    or "-"
+                )
+
+                wage_type_display = (
+                    worker.get("wage_type")
+                    or "-"
+                ).title()
+
+                col3.write(
+                    f"{wage_type_display}: "
+                    f"₹{worker.get('wage_amount') or 0}"
+                )
 
     except Exception as e:
 
@@ -487,7 +767,7 @@ with master_tab:
     st.subheader("📦 Samaan Master")
 
     st.caption(
-        "Samaan ek baar add karo. "
+        "Samaan ek baar yahan add karo. "
         "Har event mein dobara naam nahi likhna padega."
     )
 
@@ -507,7 +787,7 @@ with master_tab:
             )
 
             add_category = st.form_submit_button(
-                "Add Category"
+                "➕ Add Category"
             )
 
             if add_category:
@@ -528,142 +808,5 @@ with master_tab:
                             {
                                 "name":
                                     category_name.strip(),
-                                "active":
-                                    True,
-                                "sort_order":
-                                    0,
-                            }
-                        ).execute()
 
-                        st.success(
-                            "Category added."
-                        )
-
-                        st.rerun()
-
-                    except Exception as e:
-
-                        st.error(
-                            f"Could not add category: {e}"
-                        )
-
-    # -----------------------------------------------------
-    # CATEGORY LIST
-    # -----------------------------------------------------
-
-    try:
-
-        categories = (
-            supabase
-            .table("item_categories")
-            .select("*")
-            .eq("active", True)
-            .order("sort_order")
-            .order("name")
-            .execute()
-        )
-
-    except Exception as e:
-
-        st.error(
-            f"Could not load categories: {e}"
-        )
-
-        categories = None
-
-    for category in (
-        categories.data
-        if categories
-        else []
-    ):
-
-        with st.expander(
-            f"📁 {category['name']}"
-        ):
-
-            with st.form(
-                f"add_item_{category['id']}"
-            ):
-
-                item_name = st.text_input(
-                    "Item Name"
-                )
-
-                add_item = st.form_submit_button(
-                    "Add Item"
-                )
-
-                if add_item:
-
-                    if not item_name.strip():
-
-                        st.error(
-                            "Item name required."
-                        )
-
-                    else:
-
-                        try:
-
-                            supabase.table(
-                                "master_items"
-                            ).insert(
-                                {
-                                    "category_id":
-                                        category["id"],
-                                    "item_name":
-                                        item_name.strip(),
-                                    "active":
-                                        True,
-                                    "sort_order":
-                                        0,
-                                }
-                            ).execute()
-
-                            st.success(
-                                "Item added."
-                            )
-
-                            st.rerun()
-
-                        except Exception as e:
-
-                            st.error(
-                                f"Could not add item: {e}"
-                            )
-
-            try:
-
-                items = (
-                    supabase
-                    .table("master_items")
-                    .select("*")
-                    .eq(
-                        "category_id",
-                        category["id"],
-                    )
-                    .eq("active", True)
-                    .order("sort_order")
-                    .order("item_name")
-                    .execute()
-                )
-
-                if not items.data:
-
-                    st.info(
-                        "No items in this category."
-                    )
-
-                else:
-
-                    for item in items.data:
-
-                        st.write(
-                            f"📦 {item['item_name']}"
-                        )
-
-            except Exception as e:
-
-                st.error(
-                    f"Could not load items: {e}"
-                        )
+                                "active": True, "sort_order": 0, } ).execute() st.success( "Category added." ) st.rerun() except Exception as e: st.error( f"Could not add category: {e}" ) # ----------------------------------------------------- # CATEGORY LIST # ----------------------------------------------------- try: categories = ( supabase .table("item_categories") .select("*") .eq("active", True) .order("sort_order") .order("name") .execute() ) category_data = ( categories.data or [] ) except Exception as e: st.error( f"Could not load categories: {e}" ) category_data = [] for category in category_data: with st.expander( f"📁 {category['name']}" ): # --------------------------------------------- # ADD ITEM # --------------------------------------------- with st.form( f"add_item_{category['id']}" ): item_name = st.text_input( "Item Name" ) add_item = st.form_submit_button( "➕ Add Item" ) if add_item: if not item_name.strip(): st.error( "Item name required." ) else: try: supabase.table( "master_items" ).insert( { "category_id": category["id"], "item_name": item_name.strip(), "active": True, "sort_order": 0, } ).execute() st.success( "Item added." ) st.rerun() except Exception as e: st.error( f"Could not add item: {e}" ) # --------------------------------------------- # ITEMS # --------------------------------------------- try: items = ( supabase .table("master_items") .select("*") .eq( "category_id", category["id"], ) .eq("active", True) .order("sort_order") .order("item_name") .execute() ) item_data = ( items.data or [] ) except Exception as e: st.error( f"Could not load items: {e}" ) item_data = [] if not item_data: st.info( "No items in this category." ) else: for item in item_data: st.write( f"📦 {item['item_name']}" )
